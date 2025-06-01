@@ -90,7 +90,7 @@
       <div class="wqk-app-info">
         <p>当前主题: <strong>{{ appStore.wqkTheme }}</strong></p>
         <p>设备类型: <strong>{{ appStore.wqkDeviceType }}</strong></p>
-        <p>网络状态: <strong>{{ appStore.wqkOnlineStatus ? '在线' : '离线' }}</strong></p>
+        <p>网络状态: <strong>{{ appStore.wqkIsOnline ? '在线' : '离线' }}</strong></p>
         <p>视口尺寸: <strong>{{ appStore.wqkViewportWidth }} x {{ appStore.wqkViewportHeight }}</strong></p>
         
         <div class="wqk-notification-actions">
@@ -100,139 +100,132 @@
           <button @click="showErrorNotification" class="wqk-btn wqk-btn-error">
             显示错误通知
           </button>
-          <button @click="appStore.wqkClearAllNotifications" class="wqk-btn wqk-btn-secondary">
-            清除所有通知
-          </button>
         </div>
-      </div>
-    </div>
-
-    <!-- 通知显示区域 -->
-    <div v-if="appStore.wqkNotifications.length > 0" class="wqk-notifications">
-      <h3>通知消息 ({{ appStore.wqkUnreadNotificationsCount }})</h3>
-      <div 
-        v-for="notification in appStore.wqkNotifications" 
-        :key="notification.id"
-        :class="['wqk-notification', `wqk-notification-${notification.type}`]"
-      >
-        <div class="wqk-notification-content">
-          <h4>{{ notification.title }}</h4>
-          <p>{{ notification.message }}</p>
-          <small>{{ formatTime(notification.timestamp) }}</small>
+        
+        <div v-if="appStore.wqkNotifications.length > 0" class="wqk-notifications">
+          <h4>当前通知:</h4>
+          <div 
+            v-for="(notification, index) in appStore.wqkNotifications" 
+            :key="index"
+            class="wqk-notification"
+            :class="`wqk-notification-${notification.type}`"
+          >
+            <div class="wqk-notification-content">
+              <span class="wqk-notification-icon">
+                {{ notification.type === 'success' ? '✓' : '✗' }}
+              </span>
+              <span class="wqk-notification-message">{{ notification.message }}</span>
+            </div>
+            <button 
+              @click="appStore.wqkRemoveNotification(index)"
+              class="wqk-notification-close"
+            >
+              ×
+            </button>
+          </div>
         </div>
-        <button 
-          @click="appStore.wqkRemoveNotification(notification.id)"
-          class="wqk-notification-close"
-        >
-          ×
-        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useWqkUserStore } from '@/stores/wqkUserStore'
-import { useWqkCartStore } from '@/stores/wqkCartStore'
-import { useWqkAppStore } from '@/stores/wqkAppStore'
+import { ref } from 'vue';
+import { useUserStore } from '../../stores/wqkUserStore';
+import { useCartStore } from '../../stores/wqkCartStore';
+import { useAppStore } from '../../stores/wqkAppStore';
 
-// 使用stores
-const userStore = useWqkUserStore()
-const cartStore = useWqkCartStore()
-const appStore = useWqkAppStore()
+// 获取 store 实例
+const userStore = useUserStore();
+const cartStore = useCartStore();
+const appStore = useAppStore();
 
-// 表单数据
-const wqkEmail = ref('')
-const wqkPassword = ref('')
+// 登录表单数据
+const wqkEmail = ref('');
+const wqkPassword = ref('');
 
 // 登录处理
 const handleLogin = async () => {
   if (!wqkEmail.value || !wqkPassword.value) {
     appStore.wqkAddNotification({
-      type: 'warning',
-      title: '登录失败',
-      message: '请填写邮箱和密码'
-    })
-    return
+      type: 'error',
+      message: '请输入邮箱和密码'
+    });
+    return;
   }
   
   try {
     await userStore.wqkLogin({
       email: wqkEmail.value,
       password: wqkPassword.value
-    })
+    });
     
+    // 登录成功通知
     appStore.wqkAddNotification({
       type: 'success',
-      title: '登录成功',
-      message: `欢迎回来，${userStore.wqkUserName}！`
-    })
+      message: '登录成功！'
+    });
     
     // 清空表单
-    wqkEmail.value = ''
-    wqkPassword.value = ''
+    wqkEmail.value = '';
+    wqkPassword.value = '';
   } catch (error) {
     appStore.wqkAddNotification({
       type: 'error',
-      title: '登录失败',
-      message: error.message || '登录过程中发生错误'
-    })
+      message: error.message || '登录失败，请重试'
+    });
   }
-}
+};
 
-// 登出处理
+// 退出登录处理
 const handleLogout = () => {
-  userStore.wqkLogout()
-  appStore.wqkAddNotification({
-    type: 'info',
-    title: '已退出登录',
-    message: '您已成功退出登录'
-  })
-}
-
-// 添加示例商品
-const addSampleProduct = () => {
-  const sampleProducts = [
-    { id: 'iphone-15', name: 'iPhone 15', price: 5999, color: '粉色' },
-    { id: 'ipad-air', name: 'iPad Air', price: 4599, color: '深空灰色' },
-    { id: 'macbook-pro', name: 'MacBook Pro', price: 14999, color: '银色' },
-    { id: 'airpods-pro', name: 'AirPods Pro', price: 1899, color: '白色' }
-  ]
-  
-  const randomProduct = sampleProducts[Math.floor(Math.random() * sampleProducts.length)]
-  cartStore.wqkAddToCart(randomProduct)
-  
+  userStore.wqkLogout();
   appStore.wqkAddNotification({
     type: 'success',
-    title: '商品已添加',
-    message: `${randomProduct.name} (${randomProduct.color}) 已添加到购物车`
-  })
-}
+    message: '已退出登录'
+  });
+};
+
+// 添加示例商品到购物车
+const addSampleProduct = () => {
+  const products = [
+    { id: 'iphone-16-pro', name: 'iPhone 16 Pro', price: 8999, color: '钛金色' },
+    { id: 'iphone-16', name: 'iPhone 16', price: 6999, color: '蓝色' },
+    { id: 'airpods-pro', name: 'AirPods Pro', price: 1999 },
+    { id: 'apple-watch', name: 'Apple Watch Series 10', price: 3299, color: '银色' }
+  ];
+  
+  // 随机选择一个商品
+  const randomProduct = products[Math.floor(Math.random() * products.length)];
+  
+  // 添加到购物车
+  cartStore.wqkAddToCart({
+    ...randomProduct,
+    quantity: 1
+  });
+  
+  // 显示通知
+  appStore.wqkAddNotification({
+    type: 'success',
+    message: `已添加 ${randomProduct.name} 到购物车`
+  });
+};
 
 // 显示成功通知
 const showSuccessNotification = () => {
   appStore.wqkAddNotification({
     type: 'success',
-    title: '操作成功',
-    message: '这是一个成功通知示例'
-  })
-}
+    message: '操作成功完成！'
+  });
+};
 
 // 显示错误通知
 const showErrorNotification = () => {
   appStore.wqkAddNotification({
     type: 'error',
-    title: '操作失败',
-    message: '这是一个错误通知示例',
-    duration: 0 // 不自动消失
-  })
-}
-
-// 格式化时间
-const formatTime = (timestamp) => {
-  return new Date(timestamp).toLocaleTimeString('zh-CN')
-}
+    message: '操作失败，请重试！'
+  });
+};
 </script>
 
 <style scoped>
@@ -240,7 +233,16 @@ const formatTime = (timestamp) => {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f5f5f7;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+:root.dark .wqk-store-example {
+  background-color: #1d1d1f;
+  color: #f5f5f7;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .wqk-header {
@@ -249,202 +251,342 @@ const formatTime = (timestamp) => {
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e5e7;
+  border-bottom: 1px solid #d2d2d7;
+}
+
+:root.dark .wqk-header {
+  border-bottom-color: #424245;
+}
+
+.wqk-header h2 {
+  font-size: 1.8519rem; /* 10rem/5.4 */
+  font-weight: 600;
+  margin: 0;
+  color: #1d1d1f;
+}
+
+:root.dark .wqk-header h2 {
+  color: #f5f5f7;
 }
 
 .wqk-section {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   padding: 1.5rem;
-  background: #f5f5f7;
-  border-radius: 12px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+:root.dark .wqk-section {
+  background-color: #2d2d2f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .wqk-section h3 {
+  font-size: 1.2963rem; /* 7rem/5.4 */
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #1d1d1f;
+}
+
+:root.dark .wqk-section h3 {
+  color: #f5f5f7;
+}
+
+.wqk-section h4 {
+  font-size: 1.1111rem; /* 6rem/5.4 */
+  font-weight: 500;
+  margin-top: 1.5rem;
   margin-bottom: 1rem;
   color: #1d1d1f;
 }
 
-/* 表单样式 */
+:root.dark .wqk-section h4 {
+  color: #f5f5f7;
+}
+
+/* 登录表单样式 */
 .wqk-login-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-width: 300px;
 }
 
 .wqk-input {
-  padding: 0.75rem 1rem;
-  border: 1px solid #d2d2d7;
+  padding: 0.8rem 1rem;
   border-radius: 8px;
+  border: 1px solid #d2d2d7;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  transition: all 0.3s ease;
+  background-color: #ffffff;
+  color: #1d1d1f;
+}
+
+:root.dark .wqk-input {
+  background-color: #1d1d1f;
+  border-color: #424245;
+  color: #f5f5f7;
 }
 
 .wqk-input:focus {
   outline: none;
-  border-color: #007aff;
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  border-color: #0071e3;
+  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2);
+}
+
+.wqk-user-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f2f2f7;
+  border-radius: 8px;
+}
+
+:root.dark .wqk-user-info {
+  background-color: #323235;
 }
 
 /* 按钮样式 */
 .wqk-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
+  padding: 0.8rem 1.5rem;
   border-radius: 8px;
+  border: none;
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
-  background: #007aff;
-  color: white;
-}
-
-.wqk-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+  transition: all 0.3s ease;
+  text-align: center;
 }
 
 .wqk-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
 }
 
 .wqk-btn-primary {
-  background: #007aff;
+  background-color: #0071e3;
+  color: #ffffff;
+}
+
+.wqk-btn-primary:hover:not(:disabled) {
+  background-color: #0077ed;
+  transform: translateY(-2px);
 }
 
 .wqk-btn-secondary {
-  background: #8e8e93;
+  background-color: #f5f5f7;
+  color: #1d1d1f;
+  border: 1px solid #d2d2d7;
+}
+
+:root.dark .wqk-btn-secondary {
+  background-color: #323235;
+  color: #f5f5f7;
+  border-color: #424245;
+}
+
+.wqk-btn-secondary:hover:not(:disabled) {
+  background-color: #e5e5ea;
+  transform: translateY(-2px);
+}
+
+:root.dark .wqk-btn-secondary:hover:not(:disabled) {
+  background-color: #3a3a3c;
 }
 
 .wqk-btn-success {
-  background: #34c759;
+  background-color: #34c759;
+  color: #ffffff;
+}
+
+.wqk-btn-success:hover:not(:disabled) {
+  background-color: #30d158;
+  transform: translateY(-2px);
 }
 
 .wqk-btn-error {
-  background: #ff3b30;
+  background-color: #ff3b30;
+  color: #ffffff;
+}
+
+.wqk-btn-error:hover:not(:disabled) {
+  background-color: #ff453a;
+  transform: translateY(-2px);
+}
+
+.wqk-btn-remove {
+  background-color: transparent;
+  color: #ff3b30;
+  border: none;
+  font-size: 0.9259rem; /* 5rem/5.4 */
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.wqk-btn-remove:hover {
+  background-color: rgba(255, 59, 48, 0.1);
+}
+
+:root.dark .wqk-btn-remove {
+  color: #ff453a;
+}
+
+:root.dark .wqk-btn-remove:hover {
+  background-color: rgba(255, 69, 58, 0.2);
 }
 
 /* 购物车样式 */
 .wqk-cart-actions {
   display: flex;
   gap: 1rem;
-  margin: 1rem 0;
+  margin: 1.5rem 0;
 }
 
 .wqk-cart-items {
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .wqk-cart-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem;
-  background: white;
-  border-radius: 6px;
+  padding: 0.8rem;
   margin-bottom: 0.5rem;
+  background-color: #f2f2f7;
+  border-radius: 6px;
 }
 
-.wqk-btn-remove {
-  padding: 0.25rem 0.5rem;
-  background: #ff3b30;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  cursor: pointer;
+:root.dark .wqk-cart-item {
+  background-color: #323235;
 }
 
 /* 通知样式 */
+.wqk-notification-actions {
+  display: flex;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
 .wqk-notifications {
-  margin-top: 2rem;
+  margin-top: 1.5rem;
 }
 
 .wqk-notification {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   padding: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.8rem;
   border-radius: 8px;
-  border-left: 4px solid;
+  animation: wqkSlideIn 0.3s ease;
 }
 
 .wqk-notification-success {
-  background: #d1f2eb;
-  border-left-color: #34c759;
+  background-color: rgba(52, 199, 89, 0.15);
+  border-left: 4px solid #34c759;
 }
 
 .wqk-notification-error {
-  background: #fadbd8;
-  border-left-color: #ff3b30;
+  background-color: rgba(255, 59, 48, 0.15);
+  border-left: 4px solid #ff3b30;
 }
 
-.wqk-notification-warning {
-  background: #fcf3cf;
-  border-left-color: #ff9500;
+.wqk-notification-content {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
 }
 
-.wqk-notification-info {
-  background: #d6eaf8;
-  border-left-color: #007aff;
+.wqk-notification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-weight: bold;
 }
 
-.wqk-notification-content h4 {
-  margin: 0 0 0.25rem 0;
-  font-size: 1rem;
+.wqk-notification-success .wqk-notification-icon {
+  background-color: #34c759;
+  color: white;
 }
 
-.wqk-notification-content p {
-  margin: 0 0 0.25rem 0;
-  font-size: 0.875rem;
-}
-
-.wqk-notification-content small {
-  color: #8e8e93;
-  font-size: 0.75rem;
+.wqk-notification-error .wqk-notification-icon {
+  background-color: #ff3b30;
+  color: white;
 }
 
 .wqk-notification-close {
-  background: none;
+  background: transparent;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.2963rem; /* 7rem/5.4 */
   cursor: pointer;
-  color: #8e8e93;
-  padding: 0;
+  color: #86868b;
   width: 24px;
   height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
 .wqk-notification-close:hover {
+  background-color: rgba(0, 0, 0, 0.1);
   color: #1d1d1f;
+}
+
+:root.dark .wqk-notification-close {
+  color: #a1a1a6;
+}
+
+:root.dark .wqk-notification-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
+}
+
+/* 动画 */
+@keyframes wqkSlideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
   .wqk-store-example {
-    padding: 1rem;
+    padding: 1.5rem;
   }
   
   .wqk-header {
     flex-direction: column;
+    align-items: flex-start;
     gap: 1rem;
-    text-align: center;
   }
   
-  .wqk-cart-actions {
+  .wqk-cart-actions,
+  .wqk-notification-actions {
     flex-direction: column;
   }
   
   .wqk-cart-item {
     flex-direction: column;
+    align-items: flex-start;
     gap: 0.5rem;
-    text-align: center;
+  }
+  
+  .wqk-cart-item button {
+    align-self: flex-end;
   }
 }
 </style>
