@@ -1,34 +1,25 @@
-// stores/wqkAppStore.ts - 应用全局状态管理
-import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
 
-// 主题类型
-type WqkTheme = 'light' | 'dark' | 'auto'
+export type WqkTheme = 'light' | 'dark' | 'auto'
+export type WqkLanguage = 'zh-CN' | 'en-US'
+export type WqkDeviceType = 'mobile' | 'tablet' | 'desktop'
 
-// 语言类型
-type WqkLanguage = 'zh-CN' | 'en-US'
-
-// 设备类型
-type WqkDeviceType = 'mobile' | 'tablet' | 'desktop'
-
-// 通知类型
-interface WqkNotification {
-  id: string
-  type: 'success' | 'warning' | 'error' | 'info'
-  title: string
-  message: string
-  duration?: number
-  timestamp: number
+export interface WqkNotification {
+  wqkId: string
+  wqkType: 'success' | 'error' | 'warning' | 'info'
+  wqkTitle: string
+  wqkMessage: string
+  wqkDuration?: number
+  wqkCreatedAt: Date
 }
 
-// 应用全局状态管理
-export const useWqkAppStore = defineStore('wqkApp', () => {
+export const wqkUseAppStore = defineStore('wqkApp', () => {
   // 状态
-  const wqkTheme = ref<WqkTheme>('light')
+  const wqkTheme = ref<WqkTheme>('auto')
   const wqkLanguage = ref<WqkLanguage>('zh-CN')
   const wqkDeviceType = ref<WqkDeviceType>('desktop')
   const wqkIsLoading = ref(false)
-  const wqkLoadingText = ref('加载中...')
   const wqkSidebarCollapsed = ref(false)
   const wqkNotifications = ref<WqkNotification[]>([])
   const wqkOnlineStatus = ref(navigator.onLine)
@@ -36,127 +27,178 @@ export const useWqkAppStore = defineStore('wqkApp', () => {
   const wqkViewportHeight = ref(window.innerHeight)
 
   // 计算属性
-  const wqkIsDarkMode = computed(() => {
+  const wqkCurrentTheme = computed(() => {
     if (wqkTheme.value === 'auto') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     }
-    return wqkTheme.value === 'dark'
+    return wqkTheme.value
   })
 
   const wqkIsMobile = computed(() => wqkDeviceType.value === 'mobile')
   const wqkIsTablet = computed(() => wqkDeviceType.value === 'tablet')
   const wqkIsDesktop = computed(() => wqkDeviceType.value === 'desktop')
+  const wqkIsSmallScreen = computed(() => wqkViewportWidth.value < 768)
+  const wqkIsMediumScreen = computed(() => wqkViewportWidth.value >= 768 && wqkViewportWidth.value < 1024)
+  const wqkIsLargeScreen = computed(() => wqkViewportWidth.value >= 1024)
 
-  const wqkUnreadNotificationsCount = computed(() => {
-    return wqkNotifications.value.length
-  })
-
-  // 动作方法
-  const wqkToggleTheme = () => {
-    wqkTheme.value = wqkTheme.value === 'light' ? 'dark' : 'light'
+  // 方法
+  const wqkSetTheme = (wqkNewTheme: WqkTheme) => {
+    wqkTheme.value = wqkNewTheme
     wqkApplyTheme()
   }
 
-  const wqkSetTheme = (theme: WqkTheme) => {
-    wqkTheme.value = theme
-    wqkApplyTheme()
+  const wqkToggleTheme = () => {
+    if (wqkTheme.value === 'light') {
+      wqkSetTheme('dark')
+    } else if (wqkTheme.value === 'dark') {
+      wqkSetTheme('light')
+    } else {
+      wqkSetTheme('light')
+    }
   }
 
   const wqkApplyTheme = () => {
-    const isDark = wqkIsDarkMode.value
-    document.documentElement.classList.toggle('dark', isDark)
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    const wqkRoot = document.documentElement
+    wqkRoot.setAttribute('data-theme', wqkCurrentTheme.value)
+    wqkRoot.classList.remove('light', 'dark')
+    wqkRoot.classList.add(wqkCurrentTheme.value)
   }
 
-  const wqkSetLanguage = (language: WqkLanguage) => {
-    wqkLanguage.value = language
-    document.documentElement.setAttribute('lang', language)
+  const wqkSetLanguage = (wqkNewLanguage: WqkLanguage) => {
+    wqkLanguage.value = wqkNewLanguage
+    document.documentElement.lang = wqkNewLanguage
   }
 
-  const wqkUpdateDeviceType = () => {
-    const width = window.innerWidth
-    if (width < 768) {
+  const wqkDetectDeviceType = () => {
+    const wqkWidth = wqkViewportWidth.value
+    if (wqkWidth < 768) {
       wqkDeviceType.value = 'mobile'
-    } else if (width < 1024) {
+    } else if (wqkWidth < 1024) {
       wqkDeviceType.value = 'tablet'
     } else {
       wqkDeviceType.value = 'desktop'
     }
   }
 
-  const wqkShowLoading = (text = '加载中...') => {
-    wqkIsLoading.value = true
-    wqkLoadingText.value = text
+  const wqkSetLoading = (wqkLoading: boolean) => {
+    wqkIsLoading.value = wqkLoading
+  }
+
+  const wqkShowLoading = () => {
+    wqkSetLoading(true)
   }
 
   const wqkHideLoading = () => {
-    wqkIsLoading.value = false
+    wqkSetLoading(false)
   }
 
   const wqkToggleSidebar = () => {
     wqkSidebarCollapsed.value = !wqkSidebarCollapsed.value
   }
 
-  const wqkAddNotification = (notification: Omit<WqkNotification, 'id' | 'timestamp'>) => {
-    const newNotification: WqkNotification = {
-      ...notification,
-      id: Date.now().toString(),
-      timestamp: Date.now()
+  const wqkCollapseSidebar = () => {
+    wqkSidebarCollapsed.value = true
+  }
+
+  const wqkExpandSidebar = () => {
+    wqkSidebarCollapsed.value = false
+  }
+
+  const wqkAddNotification = (wqkNotification: Omit<WqkNotification, 'wqkId' | 'wqkCreatedAt'>) => {
+    const wqkNewNotification: WqkNotification = {
+      ...wqkNotification,
+      wqkId: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      wqkCreatedAt: new Date()
     }
-    wqkNotifications.value.push(newNotification)
+    wqkNotifications.value.push(wqkNewNotification)
 
     // 自动移除通知
-    if (notification.duration !== 0) {
+    if (wqkNotification.wqkDuration !== 0) {
+      const wqkDuration = wqkNotification.wqkDuration || 5000
       setTimeout(() => {
-        wqkRemoveNotification(newNotification.id)
-      }, notification.duration || 5000)
+        wqkRemoveNotification(wqkNewNotification.wqkId)
+      }, wqkDuration)
+    }
+
+    return wqkNewNotification.wqkId
+  }
+
+  const wqkRemoveNotification = (wqkId: string) => {
+    const wqkIndex = wqkNotifications.value.findIndex(wqkNotification => wqkNotification.wqkId === wqkId)
+    if (wqkIndex > -1) {
+      wqkNotifications.value.splice(wqkIndex, 1)
     }
   }
 
-  const wqkRemoveNotification = (id: string) => {
-    const index = wqkNotifications.value.findIndex(n => n.id === id)
-    if (index > -1) {
-      wqkNotifications.value.splice(index, 1)
-    }
-  }
-
-  const wqkClearAllNotifications = () => {
+  const wqkClearNotifications = () => {
     wqkNotifications.value = []
   }
 
-  const wqkUpdateViewport = () => {
+  const wqkShowSuccessNotification = (wqkTitle: string, wqkMessage: string, wqkDuration?: number) => {
+    return wqkAddNotification({
+      wqkType: 'success',
+      wqkTitle,
+      wqkMessage,
+      wqkDuration
+    })
+  }
+
+  const wqkShowErrorNotification = (wqkTitle: string, wqkMessage: string, wqkDuration?: number) => {
+    return wqkAddNotification({
+      wqkType: 'error',
+      wqkTitle,
+      wqkMessage,
+      wqkDuration
+    })
+  }
+
+  const wqkShowWarningNotification = (wqkTitle: string, wqkMessage: string, wqkDuration?: number) => {
+    return wqkAddNotification({
+      wqkType: 'warning',
+      wqkTitle,
+      wqkMessage,
+      wqkDuration
+    })
+  }
+
+  const wqkShowInfoNotification = (wqkTitle: string, wqkMessage: string, wqkDuration?: number) => {
+    return wqkAddNotification({
+      wqkType: 'info',
+      wqkTitle,
+      wqkMessage,
+      wqkDuration
+    })
+  }
+
+  const wqkUpdateViewportSize = () => {
     wqkViewportWidth.value = window.innerWidth
     wqkViewportHeight.value = window.innerHeight
-    wqkUpdateDeviceType()
+    wqkDetectDeviceType()
   }
 
   const wqkUpdateOnlineStatus = () => {
     wqkOnlineStatus.value = navigator.onLine
   }
 
-  // 初始化方法
+  // 初始化
   const wqkInitialize = () => {
-    // 应用主题
     wqkApplyTheme()
+    wqkDetectDeviceType()
     
-    // 设置语言
-    document.documentElement.setAttribute('lang', wqkLanguage.value)
-    
-    // 更新设备类型
-    wqkUpdateDeviceType()
-    
+    // 监听主题变化
+    const wqkMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    wqkMediaQuery.addEventListener('change', () => {
+      if (wqkTheme.value === 'auto') {
+        wqkApplyTheme()
+      }
+    })
+
     // 监听窗口大小变化
-    window.addEventListener('resize', wqkUpdateViewport)
-    
-    // 监听在线状态变化
+    window.addEventListener('resize', wqkUpdateViewportSize)
+
+    // 监听网络状态变化
     window.addEventListener('online', wqkUpdateOnlineStatus)
     window.addEventListener('offline', wqkUpdateOnlineStatus)
-    
-    // 监听主题变化（系统主题）
-    if (wqkTheme.value === 'auto') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      mediaQuery.addEventListener('change', wqkApplyTheme)
-    }
   }
 
   return {
@@ -165,33 +207,39 @@ export const useWqkAppStore = defineStore('wqkApp', () => {
     wqkLanguage,
     wqkDeviceType,
     wqkIsLoading,
-    wqkLoadingText,
     wqkSidebarCollapsed,
     wqkNotifications,
     wqkOnlineStatus,
     wqkViewportWidth,
     wqkViewportHeight,
-    
     // 计算属性
-    wqkIsDarkMode,
+    wqkCurrentTheme,
     wqkIsMobile,
     wqkIsTablet,
     wqkIsDesktop,
-    wqkUnreadNotificationsCount,
-    
+    wqkIsSmallScreen,
+    wqkIsMediumScreen,
+    wqkIsLargeScreen,
     // 方法
-    wqkToggleTheme,
     wqkSetTheme,
+    wqkToggleTheme,
     wqkApplyTheme,
     wqkSetLanguage,
-    wqkUpdateDeviceType,
+    wqkDetectDeviceType,
+    wqkSetLoading,
     wqkShowLoading,
     wqkHideLoading,
     wqkToggleSidebar,
+    wqkCollapseSidebar,
+    wqkExpandSidebar,
     wqkAddNotification,
     wqkRemoveNotification,
-    wqkClearAllNotifications,
-    wqkUpdateViewport,
+    wqkClearNotifications,
+    wqkShowSuccessNotification,
+    wqkShowErrorNotification,
+    wqkShowWarningNotification,
+    wqkShowInfoNotification,
+    wqkUpdateViewportSize,
     wqkUpdateOnlineStatus,
     wqkInitialize
   }
