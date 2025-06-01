@@ -1,0 +1,32 @@
+{
+  "iphones": [
+    {
+      "id": "iphone-16-pro",
+      "name": "iPhone 16 Pro",
+      "tagline": "iPhone 巅峰之作",
+      "price": "RMB 7999 起*",
+      "monthlyPrice": "RMB 333/月起或 RMB 7999 起*",
+      "image": "1.png",
+      "colors": [
+        { "name": "自然钛金属", "hex": "#E3C5A9" },
+        { "name": "白色钛金属", "hex": "#F0F2F2" },
+        { "name": "黑色钛金属", "hex": "#232324" }
+      ],
+      "specs": [
+        "6.3 英寸超视网膜 XDR 显示屏",
+        "A18 Pro 芯片",
+        "专业级摄像头系统",
+        "长达 27 小时的视频播放时间"
+      ]
+    }
+  ],
+  "ipads": [
+    {
+      "id": "ipad-pro",
+      "name": "iPad Pro",
+      "tagline": "超能力，超便携",
+      "price": "RMB 6799 起*",
+      "image": "ipad-pro.png"
+    }
+  ]
+}
