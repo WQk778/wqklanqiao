@@ -1,4 +1,4 @@
-// stores/index.ts - 统一导出所有store
+// 统一导出所有store模块
 export { useCounterStore } from './counter'
 export { useWqkUserStore } from './wqkUserStore'
 export { useWqkCartStore } from './wqkCartStore'
@@ -33,15 +33,15 @@ export const useStores = () => {
 }
 
 /**
- * 重置所有store的函数
- * 用于用户登出或应用重置时
+ * 初始化所有store
+ * 在应用启动时调用
  */
-export const resetAllStores = () => {
-  const { userStore, cartStore, productStore, appStore } = useStores()
+export const initializeStores = () => {
+  const appStore = useWqkAppStore()
   
-  // 重置各个store
-  userStore.$reset()
-  cartStore.$reset()
-  productStore.$reset()
-  // appStore通常不需要重置，因为包含应用级别的设置
+  // 初始化应用store
+  appStore.wqkInitialize()
+  
+  // 可以在这里添加其他store的初始化逻辑
+  console.log('Stores initialized successfully')
 }
