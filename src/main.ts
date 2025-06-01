@@ -1,4 +1,4 @@
-// main.ts
+import './assets/main.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
@@ -48,4 +48,5 @@ axios.interceptors.response.use(
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
     app.component(key, component)
   }
+
 app.mount('#app')
